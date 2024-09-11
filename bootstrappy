@@ -114,6 +114,7 @@ parse_args() {
     while getopts ${OPTSTRING} opt; do
         case ${opt} in
             h)
+                echo "bootstrappy v${VERSION}"
                 echo "Usage: bootstrappy.sh [-o] [-e <venvname>] [-h]"
                 echo "Options:"
                 echo "  -o          Overwrite the venv and tox.ini if they exist, default is false"
