@@ -203,7 +203,7 @@ create_tox_ini() {
     if [ -f "tox.ini" ]; then
         echo_andor_log "[INFO]: tox.ini already exists and will not be overwritten"
     else
-        echo_andor_log "Creating tox.ini from template"
+        echo_andor_log "[INFO]: Creating tox.ini from template"
         # Put contents of TOXINI into tox.ini
         echo "$TOXINI" > "tox.ini"
     fi
@@ -251,9 +251,11 @@ main() {
     echo_andor_log "[STEP]: Creating misc files..."
     create_misc
 
-    echo_andor_log "Done! uwu :3"
+    echo_andor_log "[YAY]: Done! uwu :3"
+    echo  # newline
     echo_andor_log "You will now need to run the following to activate the virtual environment:"
     echo_andor_log ". ./${VENVNAME}/bin/activate"
+    echo  # newline
 
     if [ $DID_LOG_SOMETHING -eq 1 ]; then
         # Ask the user if they wish to keep the log file
