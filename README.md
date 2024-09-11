@@ -23,12 +23,14 @@ Python virtual environment will be placed in: venv
 [INFO]: Using python: /Users/theresnotime/git/theresnotime/bootstrap-python-project/venv/bin/python
 [INFO]: Installing wheel, setuptools, and tox
 [STEP]: Creating tox.ini...
-Creating tox.ini from template
+[INFO]: Creating tox.ini from template
 [STEP]: Creating misc files...
 [INFO]: Creating requirements.txt
-Done! uwu :3
+[YAY]: Done! uwu :3
+
 You will now need to run the following to activate the virtual environment:
 . ./venv/bin/activate
+
 Would you like to keep the log file? (bootstrappy.log) [y/n] : n
 Deleting log file... byeeee~
 ```
