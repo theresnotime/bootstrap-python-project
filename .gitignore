@@ -1,0 +1,6 @@
+# for testing
+venv/
+venv*/
+tox.ini
+requirements.txt
+*.log

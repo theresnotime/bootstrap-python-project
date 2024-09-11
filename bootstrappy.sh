@@ -1,0 +1,270 @@
+#!/bin/bash
+
+# TODO:
+# - Can I move that tox.ini template into a separate file?
+
+
+# Defaults
+VENVNAME="venv"  # Default virtual environment name
+OVERWRITE=0
+VERBOSE=0
+DO_LOG=1
+LOG_FILE="bootstrappy.log"
+VENV_LOC=$(PWD)/$VENVNAME
+THINGS_TO_OVERWRITE=()
+
+# Variables
+VERSION="0.1"
+DID_LOG_SOMETHING=0  # Flag to check if anything was logged
+OPTSTRING=":oe:hkv"
+MISC_FILES=("requirements.txt")
+
+# tox.ini template
+TOXINI=$(cat <<EOF
+[tox]
+skipsdist = True
+envlist = flake8, black, isort
+
+[testenv:fix]
+commands =
+    black .
+    isort --profile black .
+deps =
+    black==23.3.0
+    isort==5.12.0
+
+[testenv:flake8]
+# Example usage:
+#
+# tox -e flake8 -- --statistics
+#
+commands = flake8 {posargs}
+deps = flake8==6.0.0
+
+[testenv:black]
+commands = black --check --diff .
+deps = black==23.3.0
+
+[testenv:isort]
+commands = isort --profile black --check --diff .
+deps = 
+    isort==5.12.0
+    black==23.3.0
+
+[flake8]
+exclude =
+    venv,
+    .venv,
+    .tox,
+    __pycache__,
+    config.py
+max-line-length = 286
+ignore = W503
+
+[isort]
+profile = black
+multi_line_output = 3
+no_sections = true
+
+EOF
+)
+
+# Let's goooo :3
+
+update_vars() {
+    # Update the VENV_LOC variable
+    VENV_LOC=$(PWD)/$VENVNAME
+
+    # Update the THINGS_TO_OVERWRITE variable
+    THINGS_TO_OVERWRITE=("$VENVNAME" "tox.ini" "$LOG_FILE")
+}
+
+echo_andor_log() {
+    if [ $VERBOSE -eq 1 ]; then
+        echo "$1"
+    else
+        echo "$1"
+        if [ $DO_LOG -eq 1 ]; then
+            DID_LOG_SOMETHING=1
+            echo "$1" >> $LOG_FILE
+        fi
+    fi
+}
+
+delete_stuff() {
+    update_vars
+    DELETE=("$@")
+    for t in "${DELETE[@]}"; do
+        echo_andor_log "[INFO]: Deleting $t ..."
+        rm -rf "$t"
+    done
+}
+
+check_overwrite() {
+    update_vars
+    if [ $OVERWRITE -eq 1 ]; then
+        echo_andor_log "[INFO]: Overwrite is enabled, proceeding to delete"
+        delete_stuff "${THINGS_TO_OVERWRITE[@]}"
+    else
+        echo_andor_log "[INFO]: Overwrite is disabled"
+    fi
+}
+
+parse_args() {
+    while getopts ${OPTSTRING} opt; do
+        case ${opt} in
+            h)
+                echo "Usage: bootstrappy.sh [-o] [-e <venvname>] [-h]"
+                echo "Options:"
+                echo "  -o          Overwrite the venv and tox.ini if they exist, default is false"
+                echo "  -e <name>   Set the name of the virtual environment, default is 'venv'"
+                echo "  -h          Display this help message"
+                echo "  -v          Be verbose, default is false"
+                echo "  -k          Purges all the files this script normally creates (needs to be last)"
+                exit 0
+                ;;
+            o)
+                # Set the overwrite flag
+                OVERWRITE=1
+                ;;
+            v)
+                # Set the verbose flag
+                VERBOSE=1
+                ;;
+            e)
+                # Set the VENVNAME
+                VENVNAME=$OPTARG
+                update_vars
+                ;;
+            k)
+                # Delete all the files this script normally creates
+                echo "Purging all the files this script normally creates"
+                update_vars
+                DO_LOG=0  # Don't log anything
+                delete_stuff "${THINGS_TO_OVERWRITE[@]}" "${MISC_FILES[@]}"
+                exit 0
+                ;;
+            :)
+                echo "[ERROR]: Option -${OPTARG} requires an argument."
+                exit 1
+                ;;
+            ?)
+                echo "[ERROR]: Invalid option: -${OPTARG}."
+                exit 1
+                ;;
+        esac
+    done
+}
+
+create_venv() {
+    if [ -d "$VENVNAME" ]; then
+        echo_andor_log "[INFO]: $VENVNAME already exists and will not be overwritten"
+    else
+        echo_andor_log "[INFO]: Creating venv in $VENVNAME ..."
+        # Only show output if verbose
+        if [ $VERBOSE -eq 1 ]; then
+            python3 -m venv "$VENVNAME" --upgrade-deps
+        else
+            python3 -m venv "$VENVNAME" --upgrade-deps >> $LOG_FILE
+        fi
+    fi
+}
+
+activate_venv() {
+    VENV_LOC=$(PWD)/$VENVNAME
+
+    echo_andor_log "[INFO]: Activating venv"
+    if [ -f "$VENV_LOC/bin/activate" ]; then
+        . "$VENV_LOC"/bin/activate
+    else
+        echo_andor_log "[ERROR]: Could not find activate script in $VENV_LOC"
+        exit 1
+    fi
+    
+    WHICH_PYTHON="$(which python)"
+
+    if [[ $WHICH_PYTHON == *"${VENV_LOC}"* ]]; then
+        echo_andor_log "[INFO]: Using python: $WHICH_PYTHON"
+        echo_andor_log "[INFO]: Installing wheel, setuptools, and tox"
+        # Only show output if verbose
+        if [ $VERBOSE -eq 1 ]; then
+            pip install wheel setuptools tox
+        else
+            pip install wheel setuptools tox >> $LOG_FILE
+        fi
+    else
+        echo_andor_log "[ERROR]: Python is not in the virtual environment"
+        exit 1
+    fi
+}
+
+create_tox_ini() {
+    # Copy in a tox.ini template
+    if [ -f "tox.ini" ]; then
+        echo_andor_log "[INFO]: tox.ini already exists and will not be overwritten"
+    else
+        echo_andor_log "Creating tox.ini from template"
+        # Put contents of TOXINI into tox.ini
+        echo "$TOXINI" > "tox.ini"
+    fi
+}
+
+create_misc() {
+    # Create misc files
+    for t in "${MISC_FILES[@]}"; do
+        echo_andor_log "[INFO]: Creating $t"
+        touch "$t"
+    done
+}
+
+main() {
+    # Parse the arguments first
+    parse_args "$@"
+
+    # Info etc
+    echo_andor_log "Bootstrapping a nice new Python project! (v${VERSION})"
+    echo_andor_log "Running in: ${PWD}"
+    echo_andor_log "Python virtual environment will be placed in: ${VENVNAME}"
+
+    if [ $VERBOSE -eq 1 ]; then
+        echo_andor_log "[INFO]: Verbose mode enabled"
+    fi
+    if [ $DO_LOG -eq 1 ]; then
+        echo_andor_log "[INFO]: Logging to: ${LOG_FILE}"
+    fi
+
+    update_vars
+
+    # Begin the process
+    echo_andor_log "[STEP]: Checking for existing files/deleting if option is set..."
+    check_overwrite
+
+    echo_andor_log "[STEP]: Creating virtual environment..."
+    create_venv
+    
+    echo_andor_log "[STEP]: Activating virtual environment..."
+    activate_venv
+
+    echo_andor_log "[STEP]: Creating tox.ini..."
+    create_tox_ini
+
+    echo_andor_log "[STEP]: Creating misc files..."
+    create_misc
+
+    echo_andor_log "Done! uwu :3"
+    echo_andor_log "You will now need to run the following to activate the virtual environment:"
+    echo_andor_log ". ./${VENVNAME}/bin/activate"
+
+    if [ $DID_LOG_SOMETHING -eq 1 ]; then
+        # Ask the user if they wish to keep the log file
+        read -r -p "Would you like to keep the log file? (${LOG_FILE}) [y/n] : " KEEP_LOG
+        if [ "$KEEP_LOG" == "n" ]; then
+            echo "Deleting log file... byeeee~"
+            rm $LOG_FILE
+        fi
+    fi
+    exit 0
+}
+
+# Main
+main "$@"
